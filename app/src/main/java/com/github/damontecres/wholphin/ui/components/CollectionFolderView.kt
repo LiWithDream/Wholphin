@@ -66,6 +66,7 @@ import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
+import com.github.damontecres.wholphin.ui.nav.LocalDrawerOpen
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.goToRandom
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -1076,10 +1077,13 @@ fun CollectionFolderViewContent(
                         randomButtonFocusRequester = randomButtonFocusRequester,
                     )
 
+                    val isDrawerOpen = LocalDrawerOpen.current
                     when (val pager = state.items) {
                         is DataLoadingState.Error -> {
-                            LaunchedEffect(Unit) {
-                                (focusRequesterOnEmpty ?: headerRowFocusRequester).tryRequestFocus()
+                            LaunchedEffect(isDrawerOpen) {
+                                if (!isDrawerOpen) {
+                                    (focusRequesterOnEmpty ?: headerRowFocusRequester).tryRequestFocus()
+                                }
                             }
                             ErrorMessage(pager, Modifier.fillMaxSize())
                         }
@@ -1091,17 +1095,21 @@ fun CollectionFolderViewContent(
                         }
 
                         is DataLoadingState.Success<List<BaseItem?>> -> {
-                            LaunchedEffect(Unit) {
-                                val focusRequester =
-                                    when {
-                                        contextMenu.isShowing -> null
-                                        filterDropdownShowing -> filterButtonFocusRequester
-                                        clickedRandom -> randomButtonFocusRequester
-                                        pager.data.isNotEmpty() -> gridFocusRequester
-                                        else -> focusRequesterOnEmpty ?: headerRowFocusRequester
-                                    }
-                                focusRequester?.tryRequestFocus()
-                                clickedRandom = false
+                            var initialFocusDone by remember { mutableStateOf(false) }
+                            LaunchedEffect(isDrawerOpen) {
+                                if (!isDrawerOpen && !initialFocusDone) {
+                                    val focusRequester =
+                                        when {
+                                            contextMenu.isShowing -> null
+                                            filterDropdownShowing -> filterButtonFocusRequester
+                                            clickedRandom -> randomButtonFocusRequester
+                                            pager.data.isNotEmpty() -> gridFocusRequester
+                                            else -> focusRequesterOnEmpty ?: headerRowFocusRequester
+                                        }
+                                    focusRequester?.tryRequestFocus()
+                                    clickedRandom = false
+                                    initialFocusDone = true
+                                }
                             }
                             val scope =
                                 object : CollectionFolderViewScope {

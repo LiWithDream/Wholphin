@@ -84,6 +84,7 @@ import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.nav.LocalDrawerOpen
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
@@ -314,9 +315,11 @@ fun HomePageContent(
     val currentOnFocusPosition by rememberUpdatedState(onFocusPosition)
     val currentOnClickPlay by rememberUpdatedState(onClickPlay)
 
+    val isDrawerOpen = LocalDrawerOpen.current
+    val currentIsDrawerOpen by rememberUpdatedState(isDrawerOpen)
     if (takeFocus) {
-        LaunchedEffect(homeRows) {
-            if (!firstFocused && homeRows.isNotEmpty()) {
+        LaunchedEffect(homeRows, isDrawerOpen) {
+            if (!currentIsDrawerOpen && !firstFocused && homeRows.isNotEmpty()) {
                 if (position.row >= 0) {
                     val index = position.row.coerceIn(0, rowFocusRequesters.lastIndex)
                     rowFocusRequesters.getOrNull(index)?.tryRequestFocus()

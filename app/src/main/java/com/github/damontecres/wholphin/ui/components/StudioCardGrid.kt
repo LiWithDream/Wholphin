@@ -8,7 +8,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalConfiguration
@@ -30,6 +32,7 @@ import com.github.damontecres.wholphin.ui.cards.StudioCard
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.nav.LocalDrawerOpen
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
@@ -197,7 +200,14 @@ fun StudioCardGrid(
 
         is DataLoadingState.Success<BaseItem> -> {
             Box(modifier = modifier) {
-                LaunchedEffect(Unit) { gridFocusRequester.tryRequestFocus() }
+                val isDrawerOpen = LocalDrawerOpen.current
+                var initialFocusDone by remember { mutableStateOf(false) }
+                LaunchedEffect(isDrawerOpen) {
+                    if (!isDrawerOpen && !initialFocusDone) {
+                        gridFocusRequester.tryRequestFocus()
+                        initialFocusDone = true
+                    }
+                }
                 CardGrid(
                     pager = state.studios,
                     onClickItem = { _, studio ->

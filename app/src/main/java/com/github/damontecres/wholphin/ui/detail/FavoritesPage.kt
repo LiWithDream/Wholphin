@@ -31,6 +31,7 @@ import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.defaultViewOptions
 import com.github.damontecres.wholphin.ui.components.rememberContextMenu
 import com.github.damontecres.wholphin.ui.data.rememberSortOptions
+import com.github.damontecres.wholphin.ui.nav.LocalDrawerOpen
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
 @Composable
@@ -57,7 +58,14 @@ fun FavoritesPage(
 
         FavoritesLoadingState.NoFavorites -> {
             val focusRequester = remember { FocusRequester() }
-            LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+            val isDrawerOpen = LocalDrawerOpen.current
+            var initialFocusDone by remember { mutableStateOf(false) }
+            LaunchedEffect(isDrawerOpen) {
+                if (!isDrawerOpen && !initialFocusDone) {
+                    focusRequester.tryRequestFocus()
+                    initialFocusDone = true
+                }
+            }
             Box(
                 contentAlignment = Alignment.Center,
                 modifier =

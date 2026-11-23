@@ -31,12 +31,17 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -47,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -90,6 +96,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -268,12 +275,24 @@ private const val HOME_INDEX = -1
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
 
+val LocalDrawerOpen = compositionLocalOf { false }
+
+private sealed interface DrawerPreviewTarget {
+    data object Home : DrawerPreviewTarget
+
+    data class Item(
+        val index: Int,
+        val item: NavDrawerItem,
+    ) : DrawerPreviewTarget
+}
+
 /**
- * Display the left side navigation drawer with [DestinationContent] on the right
+ * Display the left side navigation drawer with [content] on the right
  */
 @Composable
 fun NavDrawer(
-    destination: Destination,
+    destination: Destination?,
+    showDrawer: Boolean,
     preferences: UserPreferences,
     user: JellyfinUser,
     server: JellyfinServer,
@@ -286,16 +305,78 @@ fun NavDrawer(
             LocalView.current.findViewTreeViewModelStoreOwner()!!,
             key = "${server.id}_${user.id}", // Keyed to the server & user to ensure its reset when switching either
         ),
+    content: @Composable () -> Unit,
 ) {
-    LaunchedEffect(Unit) { viewModel.updateSelectedIndex() }
+    LaunchedEffect(destination) { viewModel.updateSelectedIndex() }
+    LaunchedEffect(showDrawer) {
+        if (!showDrawer) {
+            drawerState.setValue(DrawerValue.Closed)
+        }
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
 
     val focusRequester = remember { FocusRequester() }
+    val currentDestination by rememberUpdatedState(destination)
+
+    var pendingPreview by remember { mutableStateOf<DrawerPreviewTarget?>(null) }
+    var suppressInitialPreview by remember { mutableStateOf(true) }
+
+    LaunchedEffect(drawerState.isOpen) {
+        if (!drawerState.isOpen) {
+            pendingPreview = null
+            suppressInitialPreview = true
+        }
+    }
+
+    LaunchedEffect(pendingPreview) {
+        val target = pendingPreview ?: return@LaunchedEffect
+        delay(180)
+        if (!showDrawer || !drawerState.isOpen) return@LaunchedEffect
+        when (target) {
+            DrawerPreviewTarget.Home -> {
+                if (currentDestination !is Destination.Home) {
+                    viewModel.setIndex(HOME_INDEX)
+                    viewModel.navigationManager.goToHome()
+                }
+            }
+
+            is DrawerPreviewTarget.Item -> {
+                val targetDest =
+                    when (target.item) {
+                        NavDrawerItem.Favorites -> Destination.Favorites
+                        NavDrawerItem.Discover -> Destination.Discover
+                        is ServerNavDrawerItem -> target.item.destination
+                        NavDrawerItem.More -> null
+                    }
+                if (targetDest != null && currentDestination != targetDest) {
+                    viewModel.onClickDrawerItem(target.index, target.item)
+                }
+            }
+        }
+    }
+
+    val onPreviewFocused: (DrawerPreviewTarget) -> Unit = { target ->
+        if (suppressInitialPreview) {
+            suppressInitialPreview = false
+        } else if (drawerState.isOpen) {
+            pendingPreview = target
+        }
+    }
+    val onNonPreviewFocused: () -> Unit = {
+        suppressInitialPreview = false
+        pendingPreview = null
+    }
+    val enterContentFromDrawer: () -> Unit = {
+        pendingPreview = null
+        drawerState.setValue(DrawerValue.Closed)
+        focusManager.moveFocus(FocusDirection.Right)
+    }
 
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
-    BackHandler(enabled = (drawerState.currentValue == DrawerValue.Closed && destination is Destination.Home)) {
+    BackHandler(enabled = (showDrawer && drawerState.currentValue == DrawerValue.Closed && destination is Destination.Home)) {
         drawerState.setValue(DrawerValue.Open)
         focusRequester.requestFocus()
     }
@@ -305,7 +386,7 @@ fun NavDrawer(
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
 
-    BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
+    BackHandler(enabled = showDrawer && moreExpanded && drawerState.currentValue == DrawerValue.Open) {
         viewModel.setShowMore(false)
     }
 
@@ -316,7 +397,7 @@ fun NavDrawer(
             IntOffset(
                 x =
                     with(density) {
-                        if (drawerState.isOpen) (openDrawerWidth - closedDrawerWidth).roundToPx() else 0
+                        if (showDrawer && drawerState.isOpen) (openDrawerWidth - closedDrawerWidth).roundToPx() else 0
                     },
                 y = 0,
             ),
@@ -330,6 +411,7 @@ fun NavDrawer(
     ModalNavigationDrawer(
         modifier = modifier,
         drawerState = drawerState,
+        showDrawer = showDrawer,
         drawerContent = { drawerValue ->
             val isOpen = drawerValue.isOpen
             val spacedBy = 4.dp
@@ -350,7 +432,9 @@ fun NavDrawer(
                         serverName = server.name ?: server.url,
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
+                        onFocused = onNonPreviewFocused,
                         onClick = {
+                            onNonPreviewFocused()
                             viewModel.navigateToSetup(
                                 SetupDestination.UserList(server),
                             )
@@ -370,9 +454,11 @@ fun NavDrawer(
                             selected = selectedIndex == NOW_PLAYING_INDEX,
                             drawerOpen = isOpen,
                             interactionSource = interactionSource,
+                            onFocused = onNonPreviewFocused,
                             onClick = {
                                 viewModel.setIndex(NOW_PLAYING_INDEX)
                                 viewModel.navigationManager.navigateTo(Destination.NowPlaying)
+                                enterContentFromDrawer()
                             },
                             modifier =
                                 Modifier
@@ -408,9 +494,11 @@ fun NavDrawer(
                                 selected = selectedIndex == SEARCH_INDEX,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
+                                onFocused = onNonPreviewFocused,
                                 onClick = {
                                     viewModel.setIndex(SEARCH_INDEX)
                                     viewModel.navigationManager.navigateToFromDrawer(Destination.Search())
+                                    enterContentFromDrawer()
                                 },
                                 modifier =
                                     Modifier
@@ -429,14 +517,13 @@ fun NavDrawer(
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
+                                onFocused = { onPreviewFocused(DrawerPreviewTarget.Home) },
                                 onClick = {
                                     viewModel.setIndex(HOME_INDEX)
-                                    if (destination is Destination.Home) {
-                                        viewModel.navigationManager.reloadHome()
-                                        onClearBackdrop.invoke()
-                                    } else {
+                                    if (currentDestination !is Destination.Home) {
                                         viewModel.navigationManager.goToHome()
                                     }
+                                    enterContentFromDrawer()
                                 },
                                 modifier =
                                     Modifier
@@ -454,8 +541,29 @@ fun NavDrawer(
                                 moreExpanded = moreExpanded,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
+                                onFocused = {
+                                    if (it is NavDrawerItem.More) {
+                                        onNonPreviewFocused()
+                                    } else {
+                                        onPreviewFocused(DrawerPreviewTarget.Item(index, it))
+                                    }
+                                },
                                 onClick = {
-                                    viewModel.onClickDrawerItem(index, it)
+                                    val targetDest =
+                                        when (it) {
+                                            NavDrawerItem.Favorites -> Destination.Favorites
+                                            NavDrawerItem.Discover -> Destination.Discover
+                                            is ServerNavDrawerItem -> it.destination
+                                            NavDrawerItem.More -> null
+                                        }
+                                    if (targetDest != null) {
+                                        if (currentDestination != targetDest) {
+                                            viewModel.onClickDrawerItem(index, it)
+                                        }
+                                        enterContentFromDrawer()
+                                    } else {
+                                        viewModel.onClickDrawerItem(index, it)
+                                    }
                                 },
                                 modifier =
                                     Modifier
@@ -475,6 +583,7 @@ fun NavDrawer(
                                     moreExpanded = moreExpanded,
                                     drawerOpen = isOpen,
                                     interactionSource = interactionSource,
+                                    onFocused = onNonPreviewFocused,
                                     onClick = {
                                         viewModel.onClickDrawerItem(index, NavDrawerItem.More)
                                     },
@@ -497,11 +606,29 @@ fun NavDrawer(
                                     selected = selectedIndex == adjustedIndex,
                                     moreExpanded = moreExpanded,
                                     drawerOpen = isOpen,
+                                    onFocused = {
+                                        if (it is NavDrawerItem.More) {
+                                            onNonPreviewFocused()
+                                        } else {
+                                            onPreviewFocused(DrawerPreviewTarget.Item(adjustedIndex, it))
+                                        }
+                                    },
                                     onClick = {
-                                        viewModel.onClickDrawerItem(
-                                            adjustedIndex,
-                                            it,
-                                        )
+                                        val targetDest =
+                                            when (it) {
+                                                NavDrawerItem.Favorites -> Destination.Favorites
+                                                NavDrawerItem.Discover -> Destination.Discover
+                                                is ServerNavDrawerItem -> it.destination
+                                                NavDrawerItem.More -> null
+                                            }
+                                        if (targetDest != null) {
+                                            if (currentDestination != targetDest) {
+                                                viewModel.onClickDrawerItem(adjustedIndex, it)
+                                            }
+                                            enterContentFromDrawer()
+                                        } else {
+                                            viewModel.onClickDrawerItem(adjustedIndex, it)
+                                        }
                                     },
                                     containerColor =
                                         if (isOpen) {
@@ -527,7 +654,10 @@ fun NavDrawer(
                                 selected = false,
                                 drawerOpen = isOpen,
                                 interactionSource = interactionSource,
+                                onFocused = onNonPreviewFocused,
                                 onClick = {
+                                    pendingPreview = null
+                                    drawerState.setValue(DrawerValue.Closed)
                                     viewModel.navigationManager.navigateTo(
                                         Destination.Settings(
                                             PreferenceScreenOption.BASIC,
@@ -545,19 +675,23 @@ fun NavDrawer(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Drawer content
-            DestinationContent(
-                destination = destination,
-                preferences = preferences,
-                onClearBackdrop = onClearBackdrop,
+            Box(
                 modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .offset {
-                            offset
-                        }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp),
-            )
-            if (preferences.appPreferences.interfacePreferences.showClock) {
+                    if (showDrawer) {
+                        Modifier
+                            .fillMaxSize()
+                            .offset {
+                                offset
+                            }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)
+                    } else {
+                        Modifier.fillMaxSize()
+                    },
+            ) {
+                CompositionLocalProvider(LocalDrawerOpen provides (showDrawer && drawerState.isOpen)) {
+                    content()
+                }
+            }
+            if (showDrawer && preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
         }
@@ -573,8 +707,15 @@ fun NavigationDrawerScope.ProfileIcon(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    onFocused: (() -> Unit)? = null,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
+    val currentOnFocused by rememberUpdatedState(onFocused)
+    LaunchedEffect(focused) {
+        if (focused) {
+            currentOnFocused?.invoke()
+        }
+    }
     NavigationDrawerItem(
         modifier = modifier,
         selected = false,
@@ -614,8 +755,15 @@ fun NavigationDrawerScope.IconNavItem(
     modifier: Modifier = Modifier,
     subtext: String? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    onFocused: (() -> Unit)? = null,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
+    val currentOnFocused by rememberUpdatedState(onFocused)
+    LaunchedEffect(focused) {
+        if (focused) {
+            currentOnFocused?.invoke()
+        }
+    }
     NavigationDrawerItem(
         modifier = modifier,
         selected = false,
@@ -658,6 +806,7 @@ fun NavigationDrawerScope.NavItem(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
+    onFocused: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
@@ -691,6 +840,12 @@ fun NavigationDrawerScope.NavItem(
             }
         }
     val focused by interactionSource.collectIsFocusedAsState()
+    val currentOnFocused by rememberUpdatedState(onFocused)
+    LaunchedEffect(focused) {
+        if (focused) {
+            currentOnFocused?.invoke()
+        }
+    }
     NavigationDrawerItem(
         modifier = modifier,
         selected = false,

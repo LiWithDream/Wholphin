@@ -67,16 +67,19 @@ fun ModalNavigationDrawer(
     drawerContent: @Composable NavigationDrawerScope.(DrawerValue) -> Unit,
     modifier: Modifier = Modifier,
     drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed),
+    showDrawer: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier) {
-        DrawerSheet(
-            modifier =
-                Modifier
-                    .align(Alignment.CenterStart),
-            drawerState = drawerState,
-            content = drawerContent,
-        )
+        if (showDrawer) {
+            DrawerSheet(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterStart),
+                drawerState = drawerState,
+                content = drawerContent,
+            )
+        }
 
         content()
     }

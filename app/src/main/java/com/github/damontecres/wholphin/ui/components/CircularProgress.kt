@@ -17,6 +17,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import com.github.damontecres.wholphin.ui.nav.LocalDrawerOpen
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
@@ -44,7 +45,8 @@ fun LoadingPage(
     focusEnabled: Boolean = true,
 ) {
     val focusRequester = remember { FocusRequester() }
-    if (focusEnabled) {
+    val drawerOpen = LocalDrawerOpen.current
+    if (focusEnabled && !drawerOpen) {
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
     }
     Box(
@@ -75,7 +77,8 @@ fun DelayedLoadingPage(
     delay: Duration = 300.milliseconds,
 ) {
     val focusRequester = remember { FocusRequester() }
-    if (focusEnabled) {
+    val drawerOpen = LocalDrawerOpen.current
+    if (focusEnabled && !drawerOpen) {
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
     }
     var show by remember { mutableStateOf(false) }
