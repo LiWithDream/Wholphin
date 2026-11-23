@@ -19,9 +19,16 @@ dependencyResolutionManagement {
         @Suppress("ktlint:standard:property-naming")
         val WholphinExtensionsUsername: String? by settings
         if (!WholphinExtensionsUsername.isNullOrBlank()) {
-            maven("https://maven.pkg.github.com/damontecres/wholphin-extensions") {
-                name = "WholphinExtensions"
-                credentials(PasswordCredentials::class)
+            exclusiveContent {
+                forRepository {
+                    maven("https://maven.pkg.github.com/damontecres/wholphin-extensions") {
+                        name = "WholphinExtensions"
+                        credentials(PasswordCredentials::class)
+                    }
+                }
+                filter {
+                    includeGroupByRegex("com\\.github\\.damontecres\\.wholphin\\..*")
+                }
             }
         }
     }
