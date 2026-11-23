@@ -85,7 +85,7 @@
     <string name="profile_specific_settings">用户配置设置</string>
     <string name="queue">待播列表</string>
     <string name="recap">前情提要</string>
-    <string name="recently_added_in">最近添加至 %1$s</string>
+    <string name="recently_added_in">%1$s</string>
     <string name="recently_added">最近添加</string>
     <string name="recently_recorded">最近录制</string>
     <string name="recently_released">最近发行</string>
@@ -426,7 +426,7 @@
     <string name="quick_connect_success">设备授权成功</string>
     <string name="add_row">添加行</string>
     <string name="genres_in">%1$s 中的类型</string>
-    <string name="recently_released_in">%1$s 最近发行</string>
+    <string name="recently_released_in">%1$s</string>
     <string name="height">高度</string>
     <string name="apply_all_rows">应用到所有行</string>
     <string name="customize_home">自定义首页</string>

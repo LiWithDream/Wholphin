@@ -21,7 +21,6 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.components.CollectionFolderView
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.GenreCardGrid
-import com.github.damontecres.wholphin.ui.components.RecommendedTvShow
 import com.github.damontecres.wholphin.ui.components.StudioCardGrid
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabbedPage
@@ -50,7 +49,6 @@ fun CollectionFolderTv(
     val tabs =
         remember {
             listOf(
-                TabDetails(R.string.recommended),
                 TabDetails(R.string.library),
                 TabDetails(R.string.genres),
                 TabDetails(R.string.studios),
@@ -72,23 +70,8 @@ fun CollectionFolderTv(
         showTabs = showHeader,
     ) { tabIndex, tabDetails ->
         when (tabIndex) {
-            // Recommended
-            0 -> {
-                RecommendedTvShow(
-                    preferences = preferences,
-                    parentId = destination.itemId,
-                    onFocusPosition = { pos ->
-                        showHeader = pos.row < 1
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .focusRequester(tabDetails.contentFocusRequester),
-                )
-            }
-
             // Library
-            1 -> {
+            0 -> {
                 CollectionFolderView(
                     preferences = preferences,
                     itemId = destination.itemId,
@@ -118,7 +101,7 @@ fun CollectionFolderTv(
             }
 
             // Genres
-            2 -> {
+            1 -> {
                 GenreCardGrid(
                     itemId = destination.itemId,
                     includeItemTypes = listOf(BaseItemKind.SERIES),
@@ -131,7 +114,7 @@ fun CollectionFolderTv(
             }
 
             // Studios
-            3 -> {
+            2 -> {
                 StudioCardGrid(
                     itemId = destination.itemId,
                     includeItemTypes = listOf(BaseItemKind.SERIES),

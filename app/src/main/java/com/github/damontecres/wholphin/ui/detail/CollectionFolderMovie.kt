@@ -17,7 +17,6 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.components.CollectionFolderView
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.GenreCardGrid
-import com.github.damontecres.wholphin.ui.components.RecommendedMovie
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabbedPage
 import com.github.damontecres.wholphin.ui.components.ViewOptionsPoster
@@ -38,7 +37,6 @@ fun CollectionFolderMovie(
     val tabs =
         remember {
             listOf(
-                TabDetails(R.string.recommended),
                 TabDetails(R.string.library),
                 TabDetails(R.string.collections),
                 TabDetails(R.string.genres),
@@ -54,23 +52,8 @@ fun CollectionFolderMovie(
         showTabs = showHeader,
     ) { tabIndex, tabDetails ->
         when (tabIndex) {
-            // Recommended
-            0 -> {
-                RecommendedMovie(
-                    preferences = preferences,
-                    parentId = destination.itemId,
-                    onFocusPosition = { pos ->
-                        showHeader = pos.row < 1
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .focusRequester(tabDetails.contentFocusRequester),
-                )
-            }
-
             // Library
-            1 -> {
+            0 -> {
                 CollectionFolderView(
                     preferences = preferences,
                     onClickItem = { _, item ->
@@ -102,7 +85,7 @@ fun CollectionFolderMovie(
             }
 
             // Collections
-            2 -> {
+            1 -> {
                 CollectionFolderView(
                     preferences = preferences,
                     onClickItem = { _, item ->
@@ -134,7 +117,7 @@ fun CollectionFolderMovie(
             }
 
             // Genres
-            3 -> {
+            2 -> {
                 GenreCardGrid(
                     itemId = destination.itemId,
                     includeItemTypes = listOf(BaseItemKind.MOVIE),

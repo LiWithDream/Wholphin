@@ -580,49 +580,7 @@ fun SeriesDetailsContent(
                         )
                     }
                 }
-                if (similar.isNotEmpty()) {
-                    item {
-                        ItemRow(
-                            title = stringResource(R.string.more_like_this),
-                            items = similar,
-                            onClickItem = { index, item ->
-                                position = SIMILAR_ROW
-                                onClickItem.invoke(index, item)
-                            },
-                            onLongClickItem = { index, item ->
-                                position = SIMILAR_ROW
-                                onShowContextMenu.invoke(
-                                    ContextMenu.ForBaseItem(
-                                        fromLongClick = true,
-                                        item = item,
-                                        chosenStreams = null,
-                                        showGoTo = true,
-                                        showStreamChoices = false,
-                                        canDelete = false,
-                                        canRemoveContinueWatching = false,
-                                        canRemoveNextUp = false,
-                                        actions = actions,
-                                    ),
-                                )
-                            },
-                            cardContent = { index, item, mod, onClick, onLongClick ->
-                                SeasonCard(
-                                    item = item,
-                                    onClick = onClick,
-                                    onLongClick = onLongClick,
-                                    modifier = mod,
-                                    showImageOverlay = true,
-                                    imageHeight = Cards.height2x3,
-                                    imageWidth = Dp.Unspecified,
-                                )
-                            },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
-                        )
-                    }
-                }
+                // "More like this" (类似推荐) intentionally hidden in custom clean build
                 if (discovered.isNotEmpty()) {
                     item {
                         DiscoverRow(
